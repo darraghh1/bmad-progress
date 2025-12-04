@@ -1,0 +1,148 @@
+{
+  "name": "bmad-progress",
+  "displayName": "BMAD Progress",
+  "description": "See your BMAD story progress right in VSCode. Zero config.",
+  "version": "0.1.0",
+  "publisher": "bmad",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "bmad",
+    "progress",
+    "agile",
+    "story",
+    "tasks"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bmad-method/bmad-progress"
+  },
+  "icon": "resources/icon.png",
+  "activationEvents": [
+    "workspaceContains:**/.bmad/**",
+    "workspaceContains:**/.bmad-core/**",
+    "workspaceContains:**/docs/stories/**"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "bmad-progress",
+          "title": "BMAD Progress",
+          "icon": "resources/bmad-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "bmad-progress": [
+        {
+          "id": "bmadProgressView",
+          "name": "Progress"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "bmad.toggleView",
+        "title": "BMAD: Toggle View",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "bmad.refresh",
+        "title": "BMAD: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "bmad.diagnose",
+        "title": "BMAD: Diagnose"
+      },
+      {
+        "command": "bmad.openCurrentStory",
+        "title": "BMAD: Open Current Story"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "bmad.toggleView",
+          "when": "view == bmadProgressView",
+          "group": "navigation"
+        },
+        {
+          "command": "bmad.refresh",
+          "when": "view == bmadProgressView",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "BMAD Progress",
+      "properties": {
+        "bmad.defaultView": {
+          "type": "string",
+          "enum": [
+            "focus",
+            "map"
+          ],
+          "default": "focus",
+          "description": "Default view mode"
+        },
+        "bmad.showSessionStreak": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show tasks completed this session"
+        },
+        "bmad.gitIntegration": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show tasks since last commit"
+        },
+        "bmad.storiesPath": {
+          "type": "string",
+          "default": "",
+          "description": "Override auto-detected stories path"
+        }
+      }
+    },
+    "keybindings": [
+      {
+        "command": "bmad.toggleView",
+        "key": "ctrl+shift+b",
+        "mac": "cmd+shift+b"
+      }
+    ]
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify",
+    "watch": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap --watch",
+    "compile": "tsc -p ./",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "test:unit": "mocha --require ts-node/register src/test/**/*.test.ts"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/test-electron": "^2.3.8",
+    "esbuild": "^0.19.0",
+    "eslint": "^8.54.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.0"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}

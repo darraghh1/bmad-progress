@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Target/Focus icon representing BMAD Progress -->
+  <circle cx="12" cy="12" r="10" stroke-opacity="0.3"/>
+  <circle cx="12" cy="12" r="6" stroke-opacity="0.6"/>
+  <circle cx="12" cy="12" r="2" fill="currentColor"/>
+
+  <!-- Progress indicator bars at bottom -->
+  <rect x="4" y="20" width="4" height="2" rx="0.5" fill="currentColor" opacity="1"/>
+  <rect x="10" y="20" width="4" height="2" rx="0.5" fill="currentColor" opacity="0.6"/>
+  <rect x="16" y="20" width="4" height="2" rx="0.5" fill="currentColor" opacity="0.3"/>
+</svg>

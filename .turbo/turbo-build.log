@@ -1,0 +1,8 @@
+
+> bmad-progress@0.1.0 build C:\Projects\DigitalMastery\apps\bmad-vscode-dashboard
+> esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify
+
+
+  dist\extension.js  17.7kb
+
+Done in 30ms
