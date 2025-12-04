@@ -49,7 +49,7 @@ Quick glance at tasks remaining in the bottom status bar.
 
 ### Option 1: Download from GitHub Releases
 
-1. Download the latest `.vsix` file from [Releases](https://github.com/bmadcode/bmad-progress/releases)
+1. Download the latest `.vsix` file from [Releases](https://github.com/darraghh1/bmad-progress/releases)
 2. Open VSCode
 3. Go to Extensions (`Ctrl+Shift+X` / `Cmd+Shift+X`)
 4. Click the `...` menu (top right) → "Install from VSIX..."
