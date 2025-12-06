@@ -3,6 +3,6 @@
 > esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --minify
 
 
-  dist\extension.js  17.7kb
+  dist\extension.js  59.1kb
 
-Done in 30ms
+Done in 84ms
