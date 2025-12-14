@@ -292,6 +292,21 @@ export async function parseStoriesDirectory(
     epics.push(createEpicData(epicId, `Epic ${epicId}`, storiesPath, stories, epicStatus, epicGoal));
   }
 
+  // Include backlogged/contexted epics from sprint-status.yaml that have no story files yet
+  // This ensures the full roadmap is visible even for epics without stories
+  if (sprintStatus) {
+    for (const [epicId, epicStatus] of sprintStatus.epicStatuses) {
+      // Skip if we already have this epic from story files
+      if (epicMap.has(epicId)) {
+        continue;
+      }
+
+      const epicGoal = sprintStatus.epicGoals.get(epicId);
+      // Create empty epic entry so it shows in the tree view
+      epics.push(createEpicData(epicId, `Epic ${epicId}`, storiesPath, [], epicStatus, epicGoal));
+    }
+  }
+
   // Sort epics by ID
   return epics.sort((a, b) => {
     const aNum = parseInt(a.id) || 0;

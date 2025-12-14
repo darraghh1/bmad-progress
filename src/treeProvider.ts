@@ -45,12 +45,8 @@ class ProjectTreeItem extends vscode.TreeItem {
  */
 class EpicTreeItem extends vscode.TreeItem {
   constructor(public readonly epic: EpicData) {
-    super(
-      epic.name,
-      epic.stories.length > 0
-        ? vscode.TreeItemCollapsibleState.Collapsed
-        : vscode.TreeItemCollapsibleState.None
-    );
+    // Always show as collapsible for visual consistency
+    super(epic.name, vscode.TreeItemCollapsibleState.Collapsed);
 
     // Icon based on epic status
     const iconName = getEpicStatusIcon(epic.bmadStatus);
@@ -61,15 +57,26 @@ class EpicTreeItem extends vscode.TreeItem {
       this.iconPath = new vscode.ThemeIcon(
         epic.bmadStatus === 'contexted' ? 'pass-filled' : 'circle-outline'
       );
-      this.description = `${createProgressBar(epic.percentage)} ${epic.percentage}%`;
+      // Show goal instead of progress bar for better context
+      if (epic.goal) {
+        this.description = truncate(epic.goal, 50);
+      } else {
+        // Fallback to progress if no goal defined
+        this.description = `${epic.percentage}% complete`;
+      }
     }
 
-    // Tooltip with goal if available
-    const tooltipLines = [`Epic ${epic.id}: ${epic.completedCount}/${epic.totalCount} tasks`];
+    // Tooltip with full details
+    const tooltipLines = [`Epic ${epic.id}: ${epic.completedCount}/${epic.totalCount} tasks (${epic.percentage}%)`];
     if (epic.goal) {
       tooltipLines.push(`Goal: ${epic.goal}`);
     }
     tooltipLines.push(`Status: ${epic.bmadStatus}`);
+    if (epic.stories.length === 0) {
+      tooltipLines.push(`Stories: None yet`);
+    } else {
+      tooltipLines.push(`Stories: ${epic.stories.length}`);
+    }
     this.tooltip = tooltipLines.join('\n');
 
     this.contextValue = 'epic';
@@ -244,6 +251,10 @@ export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
 
     // Epic children (stories) - Map Mode
     if (element instanceof EpicTreeItem) {
+      if (element.epic.stories.length === 0) {
+        // Show placeholder for empty epics
+        return [new InfoTreeItem('No stories yet', 'info', element.epic.bmadStatus === 'backlog' ? 'Backlog' : undefined)];
+      }
       return element.epic.stories.map((story) => new StoryTreeItem(story));
     }
 
