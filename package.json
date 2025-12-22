@@ -25,7 +25,8 @@
   "activationEvents": [
     "workspaceContains:**/.bmad/**",
     "workspaceContains:**/.bmad-core/**",
-    "workspaceContains:**/docs/stories/**"
+    "workspaceContains:**/docs/stories/**",
+    "workspaceContains:**/_bmad-output/**"
   ],
   "main": "./dist/extension.js",
   "contributes": {

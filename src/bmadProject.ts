@@ -27,6 +27,7 @@ export class BmadProject implements vscode.Disposable {
   private detection: DetectionResult | null = null;
   private progress: ProjectProgress | null = null;
   private fileWatcher: vscode.FileSystemWatcher | null = null;
+  private epicsWatcher: vscode.FileSystemWatcher | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
   private sessionStartCompletedTasks = 0;
   private gitAvailable = false;
@@ -81,13 +82,6 @@ export class BmadProject implements vscode.Disposable {
   private setupFileWatcher(): void {
     if (!this.detection?.storiesPath) return;
 
-    const pattern = new vscode.RelativePattern(
-      this.detection.storiesPath,
-      '**/*.md'
-    );
-
-    this.fileWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-
     const handleChange = () => {
       if (this.debounceTimer) {
         clearTimeout(this.debounceTimer);
@@ -97,9 +91,27 @@ export class BmadProject implements vscode.Disposable {
       }, DEBOUNCE_DELAY);
     };
 
+    // Watch stories directory
+    const storiesPattern = new vscode.RelativePattern(
+      this.detection.storiesPath,
+      '**/*.md'
+    );
+    this.fileWatcher = vscode.workspace.createFileSystemWatcher(storiesPattern);
     this.fileWatcher.onDidChange(handleChange);
     this.fileWatcher.onDidCreate(handleChange);
     this.fileWatcher.onDidDelete(handleChange);
+
+    // Also watch epics.md for planned story changes
+    if (this.detection.epicsPath) {
+      const epicsPattern = new vscode.RelativePattern(
+        this.detection.epicsPath,
+        'epics*.md'
+      );
+      this.epicsWatcher = vscode.workspace.createFileSystemWatcher(epicsPattern);
+      this.epicsWatcher.onDidChange(handleChange);
+      this.epicsWatcher.onDidCreate(handleChange);
+      this.epicsWatcher.onDidDelete(handleChange);
+    }
   }
 
   /**
@@ -115,7 +127,12 @@ export class BmadProject implements vscode.Disposable {
       const sprintStatus = await parseSprintStatus(this.detection.storiesPath);
 
       // Parse stories with sprint status for BMAD workflow states
-      const epics = await parseStoriesDirectory(this.detection.storiesPath, sprintStatus);
+      // Also pass epicsPath to load planned stories from epics.md
+      const epics = await parseStoriesDirectory(
+        this.detection.storiesPath,
+        sprintStatus,
+        this.detection.epicsPath
+      );
       const currentStory = this.findCurrentStory(epics);
 
       const totalTasks = epics.reduce((sum, e) => sum + e.totalCount, 0);
@@ -194,13 +211,16 @@ export class BmadProject implements vscode.Disposable {
   }
 
   /**
-   * Get all story file paths
+   * Get all story file paths (excluding planned stories without files)
    */
   private getAllStoryFiles(epics: EpicData[]): string[] {
     const files: string[] = [];
     for (const epic of epics) {
       for (const story of epic.stories) {
-        files.push(story.filePath);
+        // Skip planned stories that don't have files yet
+        if (story.filePath) {
+          files.push(story.filePath);
+        }
       }
     }
     return files;
@@ -243,6 +263,7 @@ export class BmadProject implements vscode.Disposable {
       `- Root: ${this.workspaceRoot}`,
       `- Version: ${this.detection ? getVersionDisplayName(this.detection.version) : 'Not initialized'}`,
       `- Stories Path: ${this.detection?.storiesPath || 'Not found'}`,
+      `- Epics Path: ${this.detection?.epicsPath || 'Not found'}`,
       `- Git Available: ${this.gitAvailable ? 'Yes' : 'No'}`,
     ];
 
@@ -267,6 +288,7 @@ export class BmadProject implements vscode.Disposable {
       clearTimeout(this.debounceTimer);
     }
     this.fileWatcher?.dispose();
+    this.epicsWatcher?.dispose();
     this._onDidChange.dispose();
   }
 }

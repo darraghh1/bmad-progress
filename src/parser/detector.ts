@@ -8,11 +8,12 @@ import * as path from 'path';
 import { BmadVersion, DetectionResult } from '../types';
 
 /**
- * Detection order (per ADR-003):
- * 1. .bmad/bmm/ → v6
- * 2. .bmad-core/ → v4
- * 3. docs/stories/ → Standalone/Quick Flow
- * 4. Settings override if specified
+ * Detection order (per ADR-003, extended for _bmad-output):
+ * 1. .bmad/bmm/ → v6 (check both docs/ and _bmad-output/ for stories)
+ * 2. _bmad-output/ → v6 (new BMad Method output folder)
+ * 3. .bmad-core/ → v4
+ * 4. docs/stories/ → Standalone/Quick Flow
+ * 5. Settings override if specified
  */
 export async function detectBmadStructure(
   workspaceRoot: string,
@@ -37,11 +38,28 @@ export async function detectBmadStructure(
   const v6Path = path.join(workspaceRoot, '.bmad', 'bmm');
   if (await pathExists(v6Path)) {
     const storiesPath = await findStoriesPath(workspaceRoot, 'v6');
+    // Determine epics path - prefer _bmad-output if it exists
+    const bmadOutputPath = path.join(workspaceRoot, '_bmad-output');
+    const epicsPath = (await pathExists(bmadOutputPath))
+      ? bmadOutputPath
+      : path.join(workspaceRoot, 'docs', 'sprint-artifacts');
+
     return {
       version: 'v6',
       storiesPath,
       configPath: path.join(v6Path, 'config.yaml'),
-      epicsPath: path.join(workspaceRoot, 'docs', 'sprint-artifacts'),
+      epicsPath,
+    };
+  }
+
+  // Check _bmad-output/ folder (new BMad Method output structure)
+  const bmadOutputPath = path.join(workspaceRoot, '_bmad-output');
+  const bmadOutputStoriesPath = path.join(bmadOutputPath, 'stories');
+  if (await pathExists(bmadOutputStoriesPath)) {
+    return {
+      version: 'v6',
+      storiesPath: bmadOutputStoriesPath,
+      epicsPath: bmadOutputPath,
     };
   }
 
@@ -69,6 +87,7 @@ export async function detectBmadStructure(
   const alternativePaths = [
     path.join(workspaceRoot, 'stories'),
     path.join(workspaceRoot, 'docs', 'sprint-artifacts'),
+    path.join(workspaceRoot, '_bmad-output', 'stories'), // Also check _bmad-output as fallback
   ];
 
   for (const altPath of alternativePaths) {
@@ -89,6 +108,7 @@ export async function detectBmadStructure(
 
 /**
  * Find the stories path based on BMAD version
+ * For v6, checks _bmad-output/stories first, then docs/ locations
  */
 async function findStoriesPath(
   workspaceRoot: string,
@@ -97,12 +117,17 @@ async function findStoriesPath(
   const possiblePaths =
     version === 'v6'
       ? [
+          // New _bmad-output structure (BMad Method GitHub update)
+          path.join(workspaceRoot, '_bmad-output', 'stories'),
+          // Original v6 locations
           path.join(workspaceRoot, 'docs', 'sprint-artifacts'),
           path.join(workspaceRoot, 'docs', 'stories'),
         ]
       : [
           path.join(workspaceRoot, 'docs', 'stories'),
           path.join(workspaceRoot, 'stories'),
+          // Also check _bmad-output for v4/quickflow as fallback
+          path.join(workspaceRoot, '_bmad-output', 'stories'),
         ];
 
   for (const p of possiblePaths) {

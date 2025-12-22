@@ -6,6 +6,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { TaskItem, StoryData, EpicData, SprintStatus, BmadStoryStatus, BmadEpicStatus } from '../types';
+import { parseEpicsFile, EpicsFileData, PlannedStory, PlannedEpic } from './epicsParser';
 
 /** Regex patterns for parsing */
 const CHECKBOX_PATTERN = /^(\s*)- \[([ xX])\] (.+)$/;
@@ -216,14 +217,21 @@ const SKIP_PATTERNS = [
 /**
  * Parse all stories in a directory into epics
  * Supports both flat structure ({epic}-{story}-name.md) and epic subfolders
+ * Also loads planned stories from epics.md to show the full roadmap
  * @param storiesPath Path to stories directory
  * @param sprintStatus Optional sprint status for BMAD workflow status lookup
+ * @param epicsPath Optional path to epics folder (for epics.md lookup)
  */
 export async function parseStoriesDirectory(
   storiesPath: string,
-  sprintStatus?: SprintStatus | null
+  sprintStatus?: SprintStatus | null,
+  epicsPath?: string
 ): Promise<EpicData[]> {
   const epicMap: Map<string, StoryData[]> = new Map();
+  const existingStoryIds = new Set<string>(); // Track which stories have files
+
+  // Load planned stories from epics.md
+  const epicsData = epicsPath ? await parseEpicsFile(epicsPath) : null;
 
   try {
     const uri = vscode.Uri.file(storiesPath);
@@ -240,6 +248,8 @@ export async function parseStoriesDirectory(
           if (epicStories.length > 0) {
             const existing = epicMap.get(epicId) || [];
             epicMap.set(epicId, [...existing, ...epicStories]);
+            // Track existing story IDs
+            epicStories.forEach((s) => existingStoryIds.add(s.storyId));
           }
         }
         continue;
@@ -265,12 +275,35 @@ export async function parseStoriesDirectory(
           if (storyData) {
             const existing = epicMap.get(epicId) || [];
             epicMap.set(epicId, [...existing, storyData]);
+            existingStoryIds.add(storyKey);
           }
         }
       }
     }
   } catch (error) {
     console.error(`Failed to parse stories directory: ${storiesPath}`, error);
+  }
+
+  // Add planned stories from epics.md that don't have files yet
+  if (epicsData) {
+    for (const plannedEpic of epicsData.epics) {
+      const epicId = plannedEpic.id;
+      const existingStories = epicMap.get(epicId) || [];
+
+      // Add placeholder stories for those without files
+      for (const plannedStory of plannedEpic.stories) {
+        if (!existingStoryIds.has(plannedStory.storyId)) {
+          // Get status from sprint-status.yaml if available
+          const bmadStatus = sprintStatus?.storyStatuses.get(plannedStory.storyId) || 'backlog';
+          const placeholder = createPlannedStoryData(plannedStory, storiesPath, bmadStatus);
+          existingStories.push(placeholder);
+        }
+      }
+
+      if (existingStories.length > 0) {
+        epicMap.set(epicId, existingStories);
+      }
+    }
   }
 
   // Convert map to EpicData array
@@ -285,24 +318,51 @@ export async function parseStoriesDirectory(
       return aNum - bNum;
     });
 
-    // Get epic metadata from sprint status
+    // Get epic metadata - prefer epics.md, fallback to sprint status
+    const plannedEpic = epicsData?.epics.find((e) => e.id === epicId);
+    const epicName = plannedEpic ? `Epic ${epicId}: ${plannedEpic.title}` : `Epic ${epicId}`;
+    const epicGoal = plannedEpic?.goal || sprintStatus?.epicGoals.get(epicId);
     const epicStatus = sprintStatus?.epicStatuses.get(epicId) || 'backlog';
-    const epicGoal = sprintStatus?.epicGoals.get(epicId);
 
-    epics.push(createEpicData(epicId, `Epic ${epicId}`, storiesPath, stories, epicStatus, epicGoal));
+    epics.push(createEpicData(epicId, epicName, storiesPath, stories, epicStatus, epicGoal));
   }
 
-  // Include backlogged/contexted epics from sprint-status.yaml that have no story files yet
-  // This ensures the full roadmap is visible even for epics without stories
+  // Include epics from epics.md that have no story files at all yet
+  if (epicsData) {
+    for (const plannedEpic of epicsData.epics) {
+      if (!epicMap.has(plannedEpic.id)) {
+        const epicStatus = sprintStatus?.epicStatuses.get(plannedEpic.id) || 'backlog';
+        const epicName = `Epic ${plannedEpic.id}: ${plannedEpic.title}`;
+
+        // Create placeholder stories for this epic
+        const placeholderStories = plannedEpic.stories.map((ps) => {
+          const bmadStatus = sprintStatus?.storyStatuses.get(ps.storyId) || 'backlog';
+          return createPlannedStoryData(ps, storiesPath, bmadStatus);
+        });
+
+        epics.push(
+          createEpicData(
+            plannedEpic.id,
+            epicName,
+            storiesPath,
+            placeholderStories,
+            epicStatus,
+            plannedEpic.goal
+          )
+        );
+      }
+    }
+  }
+
+  // Also include epics from sprint-status.yaml (for backwards compatibility)
   if (sprintStatus) {
     for (const [epicId, epicStatus] of sprintStatus.epicStatuses) {
-      // Skip if we already have this epic from story files
-      if (epicMap.has(epicId)) {
+      // Skip if we already have this epic
+      if (epicMap.has(epicId) || epics.some((e) => e.id === epicId)) {
         continue;
       }
 
       const epicGoal = sprintStatus.epicGoals.get(epicId);
-      // Create empty epic entry so it shows in the tree view
       epics.push(createEpicData(epicId, `Epic ${epicId}`, storiesPath, [], epicStatus, epicGoal));
     }
   }
@@ -313,6 +373,29 @@ export async function parseStoriesDirectory(
     const bNum = parseInt(b.id) || 0;
     return aNum - bNum;
   });
+}
+
+/**
+ * Create a placeholder StoryData for a planned story without a file
+ */
+function createPlannedStoryData(
+  planned: PlannedStory,
+  storiesPath: string,
+  bmadStatus: BmadStoryStatus
+): StoryData {
+  return {
+    filePath: '', // No file yet
+    fileName: `${planned.epicId}-${planned.storyNum}-planned.md`,
+    storyId: planned.storyId,
+    title: planned.title,
+    tasks: [],
+    completedCount: 0,
+    totalCount: 0,
+    percentage: 0,
+    taskStatus: 'not-started',
+    bmadStatus,
+    lastModified: new Date(0), // Epoch - indicates no file
+  };
 }
 
 /**
