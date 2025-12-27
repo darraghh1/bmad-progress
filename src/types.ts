@@ -12,10 +12,11 @@ export type BmadStoryStatus =
   | 'ready-for-dev'
   | 'in-progress'
   | 'review'
-  | 'done';
+  | 'done'
+  | 'deprecated';
 
 /** BMAD epic status from sprint-status.yaml */
-export type BmadEpicStatus = 'backlog' | 'contexted' | 'cancelled';
+export type BmadEpicStatus = 'backlog' | 'in-progress' | 'done' | 'contexted' | 'cancelled' | 'deprecated';
 
 /** Task status parsed from markdown checkboxes */
 export interface TaskItem {
@@ -90,11 +91,7 @@ export interface DetectionResult {
 
 /** Extension settings from VSCode configuration */
 export interface ExtensionSettings {
-  defaultView: 'focus' | 'map';
   showSessionStreak: boolean;
   gitIntegration: boolean;
   storiesPath: string;
 }
-
-/** View mode for the TreeView */
-export type ViewMode = 'focus' | 'map';

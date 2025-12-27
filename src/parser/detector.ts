@@ -8,8 +8,8 @@ import * as path from 'path';
 import { BmadVersion, DetectionResult } from '../types';
 
 /**
- * Detection order (per ADR-003, extended for _bmad-output):
- * 1. .bmad/bmm/ → v6 (check both docs/ and _bmad-output/ for stories)
+ * Detection order (per ADR-003, extended for _bmad and _bmad-output):
+ * 1. .bmad/bmm/ OR _bmad/bmm/ → v6 (check both naming conventions)
  * 2. _bmad-output/ → v6 (new BMad Method output folder)
  * 3. .bmad-core/ → v4
  * 4. docs/stories/ → Standalone/Quick Flow
@@ -34,22 +34,25 @@ export async function detectBmadStructure(
     }
   }
 
-  // Check v6 structure: .bmad/bmm/
-  const v6Path = path.join(workspaceRoot, '.bmad', 'bmm');
-  if (await pathExists(v6Path)) {
-    const storiesPath = await findStoriesPath(workspaceRoot, 'v6');
-    // Determine epics path - prefer _bmad-output if it exists
-    const bmadOutputPath = path.join(workspaceRoot, '_bmad-output');
-    const epicsPath = (await pathExists(bmadOutputPath))
-      ? bmadOutputPath
-      : path.join(workspaceRoot, 'docs', 'sprint-artifacts');
+  // Check v6 structure: .bmad/bmm/ OR _bmad/bmm/ (both naming conventions)
+  const v6Candidates = [
+    path.join(workspaceRoot, '.bmad', 'bmm'),
+    path.join(workspaceRoot, '_bmad', 'bmm'),
+  ];
 
-    return {
-      version: 'v6',
-      storiesPath,
-      configPath: path.join(v6Path, 'config.yaml'),
-      epicsPath,
-    };
+  for (const v6Path of v6Candidates) {
+    if (await pathExists(v6Path)) {
+      const storiesPath = await findStoriesPath(workspaceRoot, 'v6');
+      // Determine epics path - check multiple locations
+      const epicsPath = await findEpicsPath(workspaceRoot);
+
+      return {
+        version: 'v6',
+        storiesPath,
+        configPath: path.join(v6Path, 'config.yaml'),
+        epicsPath,
+      };
+    }
   }
 
   // Check _bmad-output/ folder (new BMad Method output structure)
@@ -107,8 +110,30 @@ export async function detectBmadStructure(
 }
 
 /**
+ * Find the epics path for BMAD v6 projects
+ */
+async function findEpicsPath(workspaceRoot: string): Promise<string> {
+  const possiblePaths = [
+    // New _bmad-output structure (BMad Method v6.0+)
+    path.join(workspaceRoot, '_bmad-output', 'project-planning-artifacts'),
+    path.join(workspaceRoot, '_bmad-output'),
+    // Original v6 locations
+    path.join(workspaceRoot, 'docs', 'sprint-artifacts'),
+    path.join(workspaceRoot, 'docs', 'epics'),
+  ];
+
+  for (const p of possiblePaths) {
+    if (await pathExists(p)) {
+      return p;
+    }
+  }
+
+  return possiblePaths[0];
+}
+
+/**
  * Find the stories path based on BMAD version
- * For v6, checks _bmad-output/stories first, then docs/ locations
+ * For v6, checks multiple locations including new implementation-artifacts folder
  */
 async function findStoriesPath(
   workspaceRoot: string,
@@ -117,7 +142,8 @@ async function findStoriesPath(
   const possiblePaths =
     version === 'v6'
       ? [
-          // New _bmad-output structure (BMad Method GitHub update)
+          // New _bmad-output structure (BMad Method v6.0+)
+          path.join(workspaceRoot, '_bmad-output', 'implementation-artifacts'),
           path.join(workspaceRoot, '_bmad-output', 'stories'),
           // Original v6 locations
           path.join(workspaceRoot, 'docs', 'sprint-artifacts'),
@@ -127,6 +153,7 @@ async function findStoriesPath(
           path.join(workspaceRoot, 'docs', 'stories'),
           path.join(workspaceRoot, 'stories'),
           // Also check _bmad-output for v4/quickflow as fallback
+          path.join(workspaceRoot, '_bmad-output', 'implementation-artifacts'),
           path.join(workspaceRoot, '_bmad-output', 'stories'),
         ];
 

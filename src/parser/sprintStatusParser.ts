@@ -16,10 +16,11 @@ const VALID_STORY_STATUSES: BmadStoryStatus[] = [
   'in-progress',
   'review',
   'done',
+  'deprecated',
 ];
 
 /** Valid epic statuses */
-const VALID_EPIC_STATUSES: BmadEpicStatus[] = ['backlog', 'contexted', 'cancelled'];
+const VALID_EPIC_STATUSES: BmadEpicStatus[] = ['backlog', 'in-progress', 'done', 'contexted', 'cancelled', 'deprecated'];
 
 /**
  * Parse sprint-status.yaml from the stories directory
@@ -59,9 +60,11 @@ function parseSprintStatusContent(content: string): SprintStatus {
   const devStatus = data.development_status as Record<string, string> | undefined;
   if (devStatus) {
     for (const [key, value] of Object.entries(devStatus)) {
-      // Epic status: epic-1, epic-2, etc.
-      if (key.match(/^epic-\d+$/)) {
-        const epicId = key.replace('epic-', '');
+      // Epic status: epic-1, epic-2, hs-epic-6, etc.
+      const epicMatch = key.match(/^(?:hs-)?epic-(\d+)$/);
+      if (epicMatch) {
+        // Preserve prefix for hs-epics (e.g., "hs-6" vs "6")
+        const epicId = key.startsWith('hs-') ? `hs-${epicMatch[1]}` : epicMatch[1];
         if (VALID_EPIC_STATUSES.includes(value as BmadEpicStatus)) {
           epicStatuses.set(epicId, value as BmadEpicStatus);
         }
@@ -73,10 +76,12 @@ function parseSprintStatusContent(content: string): SprintStatus {
         continue;
       }
 
-      // Story status: 1-1-story-name, 8-3-cross-subdomain-auth, etc.
-      const storyMatch = key.match(/^(\d+)-(\d+)/);
+      // Story status: 1-1-story-name, hs-6-1-project-init, etc.
+      const storyMatch = key.match(/^(hs-)?(\d+)-(\d+)/);
       if (storyMatch) {
-        const storyKey = `${storyMatch[1]}.${storyMatch[2]}`;
+        // Preserve prefix for hs-stories
+        const prefix = storyMatch[1] || '';
+        const storyKey = `${prefix}${storyMatch[2]}.${storyMatch[3]}`;
         if (VALID_STORY_STATUSES.includes(value as BmadStoryStatus)) {
           storyStatuses.set(storyKey, value as BmadStoryStatus);
         }
@@ -129,6 +134,8 @@ export function getStoryStatusIcon(status: BmadStoryStatus): string {
       return 'rocket';
     case 'drafted':
       return 'edit';
+    case 'deprecated':
+      return 'archive';
     case 'backlog':
       return 'circle-outline';
     default:
@@ -141,10 +148,16 @@ export function getStoryStatusIcon(status: BmadStoryStatus): string {
  */
 export function getEpicStatusIcon(status: BmadEpicStatus): string {
   switch (status) {
+    case 'done':
+      return 'check-all';
+    case 'in-progress':
+      return 'sync~spin';
     case 'contexted':
       return 'pass-filled';
     case 'cancelled':
       return 'close';
+    case 'deprecated':
+      return 'archive';
     case 'backlog':
       return 'circle-outline';
     default:
@@ -167,6 +180,8 @@ export function getStoryStatusLabel(status: BmadStoryStatus): string {
       return 'Ready';
     case 'drafted':
       return 'Drafted';
+    case 'deprecated':
+      return 'Deprecated';
     case 'backlog':
       return 'Backlog';
     default:
@@ -179,10 +194,16 @@ export function getStoryStatusLabel(status: BmadStoryStatus): string {
  */
 export function getEpicStatusLabel(status: BmadEpicStatus): string {
   switch (status) {
+    case 'done':
+      return 'Done';
+    case 'in-progress':
+      return 'In Progress';
     case 'contexted':
       return 'Active';
     case 'cancelled':
       return 'Cancelled';
+    case 'deprecated':
+      return 'Deprecated';
     case 'backlog':
       return 'Backlog';
     default:

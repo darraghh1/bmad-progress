@@ -46,30 +46,76 @@ const STORY_HEADER_PATTERN = /^###\s+Story\s+(\d+)\.(\d+):\s*(.+)$/;
 const GOAL_PATTERN = /^\*\*(?:Goal|Done when):\*\*\s*(.+)$/;
 
 /**
- * Parse the epics.md file to extract epic and story information
+ * Parse all epics*.md files to extract epic and story information
+ * Supports multiple files: epics.md, epics-phase2.md, hook-system-epics.md, etc.
  * @param epicsPath Path to the epics folder (e.g., _bmad-output or docs/sprint-artifacts)
  */
 export async function parseEpicsFile(epicsPath: string): Promise<EpicsFileData | null> {
-  // Try epics.md in the given path
-  const possibleFiles = [
-    path.join(epicsPath, 'epics.md'),
-    path.join(epicsPath, 'epics-and-stories.md'),
-  ];
+  const allEpics: PlannedEpic[] = [];
+  const allStoryMap = new Map<string, PlannedStory>();
+  let projectName: string | undefined;
 
-  for (const filePath of possibleFiles) {
-    try {
-      const uri = vscode.Uri.file(filePath);
-      const content = await vscode.workspace.fs.readFile(uri);
-      const text = Buffer.from(content).toString('utf-8');
-      return parseEpicsContent(text);
-    } catch {
-      // File doesn't exist, try next
-      continue;
+  try {
+    // Read all files in the epics directory
+    const uri = vscode.Uri.file(epicsPath);
+    const entries = await vscode.workspace.fs.readDirectory(uri);
+
+    // Find all epic files (any .md file containing "epic" in the name)
+    const epicFiles = entries
+      .filter(([name, type]) =>
+        type === vscode.FileType.File &&
+        name.toLowerCase().includes('epic') &&
+        name.endsWith('.md')
+      )
+      .map(([name]) => path.join(epicsPath, name));
+
+    // Parse each epic file
+    for (const filePath of epicFiles) {
+      try {
+        const fileUri = vscode.Uri.file(filePath);
+        const content = await vscode.workspace.fs.readFile(fileUri);
+        const text = Buffer.from(content).toString('utf-8');
+        const parsed = parseEpicsContent(text);
+
+        // Merge results
+        if (parsed.projectName && !projectName) {
+          projectName = parsed.projectName;
+        }
+
+        // Add epics (avoid duplicates by ID)
+        for (const epic of parsed.epics) {
+          const existing = allEpics.find(e => e.id === epic.id);
+          if (!existing) {
+            allEpics.push(epic);
+          }
+        }
+
+        // Merge story map
+        for (const [storyId, story] of parsed.storyMap) {
+          if (!allStoryMap.has(storyId)) {
+            allStoryMap.set(storyId, story);
+          }
+        }
+      } catch {
+        // File read error, continue with next
+        continue;
+      }
     }
-  }
 
-  console.log('No epics.md file found');
-  return null;
+    if (allEpics.length === 0) {
+      console.log('No epic content found in epics path');
+      return null;
+    }
+
+    return {
+      projectName,
+      epics: allEpics.sort((a, b) => parseInt(a.id) - parseInt(b.id)),
+      storyMap: allStoryMap,
+    };
+  } catch {
+    console.log('Failed to read epics directory');
+    return null;
+  }
 }
 
 /**

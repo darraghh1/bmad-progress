@@ -181,8 +181,8 @@ export class BmadProject implements vscode.Disposable {
 
     for (const status of priorityOrder) {
       for (const epic of epics) {
-        // Skip cancelled epics
-        if (epic.bmadStatus === 'cancelled') continue;
+        // Skip cancelled/deprecated epics
+        if (epic.bmadStatus === 'cancelled' || epic.bmadStatus === 'deprecated') continue;
 
         for (const story of epic.stories) {
           if (story.bmadStatus === status) {
@@ -197,7 +197,7 @@ export class BmadProject implements vscode.Disposable {
     let latestModified = new Date(0);
 
     for (const epic of epics) {
-      if (epic.bmadStatus === 'cancelled') continue;
+      if (epic.bmadStatus === 'cancelled' || epic.bmadStatus === 'deprecated') continue;
 
       for (const story of epic.stories) {
         if (story.taskStatus === 'in-progress' && story.lastModified > latestModified) {

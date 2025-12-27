@@ -1,12 +1,11 @@
 /**
  * TreeDataProvider Implementation
- * Manages the TreeView sidebar with Focus and Map modes
+ * Manages the TreeView sidebar showing epic/story progress
  */
 
 import * as vscode from 'vscode';
 import { BmadProject } from './bmadProject';
-import { ViewMode, StoryData, EpicData, ProjectProgress } from './types';
-import { getNextTask } from './parser/storyParser';
+import { StoryData, EpicData, ProjectProgress } from './types';
 import {
   getStoryStatusIcon,
   getStoryStatusLabel,
@@ -20,12 +19,10 @@ type TreeElement =
   | ProjectTreeItem
   | EpicTreeItem
   | StoryTreeItem
-  | FocusHeaderItem
-  | InfoTreeItem
-  | ActionTreeItem;
+  | InfoTreeItem;
 
 /**
- * Project tree item (top-level in Map Mode)
+ * Project tree item (top-level)
  */
 class ProjectTreeItem extends vscode.TreeItem {
   constructor(
@@ -45,29 +42,55 @@ class ProjectTreeItem extends vscode.TreeItem {
  */
 class EpicTreeItem extends vscode.TreeItem {
   constructor(public readonly epic: EpicData) {
-    // Always show as collapsible for visual consistency
-    super(epic.name, vscode.TreeItemCollapsibleState.Collapsed);
+    // Extract title from "Epic X: Title" format
+    // Handle cases: "Epic 1: Some Title" → "Some Title", "Epic 6" → null
+    const titleMatch = epic.name.match(/^Epic\s+\d+:\s*(.+)$/i);
+    const title = titleMatch ? titleMatch[1] : null;
 
-    // Icon based on epic status
+    // Compact label: "1 · Title" if title exists, otherwise just "1"
+    const compactLabel = title ? `${epic.id} · ${title}` : epic.id;
+
+    // Always show as collapsible for visual consistency
+    super(compactLabel, vscode.TreeItemCollapsibleState.Collapsed);
+
+    // Icon and description based on epic status
     const iconName = getEpicStatusIcon(epic.bmadStatus);
-    if (epic.bmadStatus === 'cancelled') {
-      this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('disabledForeground'));
-      this.description = `[Cancelled]`;
-    } else {
-      this.iconPath = new vscode.ThemeIcon(
-        epic.bmadStatus === 'contexted' ? 'pass-filled' : 'circle-outline'
-      );
-      // Show goal instead of progress bar for better context
-      if (epic.goal) {
-        this.description = truncate(epic.goal, 50);
-      } else {
-        // Fallback to progress if no goal defined
-        this.description = `${epic.percentage}% complete`;
-      }
+
+    // Count done stories for progress display
+    const doneStories = epic.stories.filter(s => s.bmadStatus === 'done').length;
+    const storyProgress = `${doneStories}/${epic.stories.length}`;
+
+    switch (epic.bmadStatus) {
+      case 'done':
+        this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('charts.green'));
+        this.description = `[Done] ${storyProgress}`;
+        break;
+      case 'in-progress':
+        this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('charts.yellow'));
+        this.description = epic.goal ? truncate(epic.goal, 40) : storyProgress;
+        break;
+      case 'contexted':
+        this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('charts.blue'));
+        this.description = epic.goal ? truncate(epic.goal, 40) : storyProgress;
+        break;
+      case 'cancelled':
+        this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('disabledForeground'));
+        this.description = '[Cancelled]';
+        break;
+      case 'deprecated':
+        this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('disabledForeground'));
+        this.description = '[Deprecated]';
+        break;
+      case 'backlog':
+      default:
+        this.iconPath = new vscode.ThemeIcon(iconName);
+        this.description = epic.goal ? truncate(epic.goal, 40) : storyProgress;
+        break;
     }
 
     // Tooltip with full details
-    const tooltipLines = [`Epic ${epic.id}: ${epic.completedCount}/${epic.totalCount} tasks (${epic.percentage}%)`];
+    const tooltipLines = [title ? `Epic ${epic.id}: ${title}` : `Epic ${epic.id}`];
+    tooltipLines.push(`Tasks: ${epic.completedCount}/${epic.totalCount} (${epic.percentage}%)`);
     if (epic.goal) {
       tooltipLines.push(`Goal: ${epic.goal}`);
     }
@@ -75,7 +98,7 @@ class EpicTreeItem extends vscode.TreeItem {
     if (epic.stories.length === 0) {
       tooltipLines.push(`Stories: None yet`);
     } else {
-      tooltipLines.push(`Stories: ${epic.stories.length}`);
+      tooltipLines.push(`Stories: ${doneStories}/${epic.stories.length} done`);
     }
     this.tooltip = tooltipLines.join('\n');
 
@@ -121,6 +144,9 @@ class StoryTreeItem extends vscode.TreeItem {
       case 'drafted':
         this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('charts.orange'));
         break;
+      case 'deprecated':
+        this.iconPath = new vscode.ThemeIcon(iconName, new vscode.ThemeColor('disabledForeground'));
+        break;
       case 'backlog':
       default:
         this.iconPath = new vscode.ThemeIcon(iconName);
@@ -133,23 +159,6 @@ class StoryTreeItem extends vscode.TreeItem {
       title: 'Open Story',
       arguments: [story],
     };
-  }
-}
-
-/**
- * Focus mode header item (expandable to show details)
- */
-class FocusHeaderItem extends vscode.TreeItem {
-  constructor(
-    public readonly story: StoryData,
-    public readonly progress: ProjectProgress
-  ) {
-    const statusLabel = getStoryStatusLabel(story.bmadStatus);
-    super(`FOCUS: Story ${story.storyId} [${statusLabel}]`, vscode.TreeItemCollapsibleState.Expanded);
-    this.iconPath = new vscode.ThemeIcon('target');
-    this.description = truncate(story.title, 35);
-    this.tooltip = `${story.title}\nStatus: ${statusLabel}\nTasks: ${story.completedCount}/${story.totalCount}`;
-    this.contextValue = 'focusHeader';
   }
 }
 
@@ -171,24 +180,7 @@ class InfoTreeItem extends vscode.TreeItem {
   }
 }
 
-/**
- * Action tree item (clickable)
- */
-class ActionTreeItem extends vscode.TreeItem {
-  constructor(
-    label: string,
-    icon: string,
-    command: vscode.Command
-  ) {
-    super(label, vscode.TreeItemCollapsibleState.None);
-    this.iconPath = new vscode.ThemeIcon(icon);
-    this.command = command;
-    this.contextValue = 'action';
-  }
-}
-
 export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
-  private viewMode: ViewMode = 'focus';
   private projects: BmadProject[] = [];
   private disposables: vscode.Disposable[] = [];
 
@@ -212,21 +204,6 @@ export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
     this._onDidChangeTreeData.fire();
   }
 
-  toggleMode(): ViewMode {
-    this.viewMode = this.viewMode === 'focus' ? 'map' : 'focus';
-    this._onDidChangeTreeData.fire();
-    return this.viewMode;
-  }
-
-  setMode(mode: ViewMode): void {
-    this.viewMode = mode;
-    this._onDidChangeTreeData.fire();
-  }
-
-  getMode(): ViewMode {
-    return this.viewMode;
-  }
-
   refresh(): void {
     this._onDidChangeTreeData.fire();
   }
@@ -239,17 +216,17 @@ export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
    * Get children - this is where the hierarchy magic happens
    */
   getChildren(element?: TreeElement): vscode.ProviderResult<TreeElement[]> {
-    // Root level
+    // Root level - show epics
     if (!element) {
       return this.getRootItems();
     }
 
-    // Project children (epics) - Map Mode
+    // Project children (epics)
     if (element instanceof ProjectTreeItem) {
       return element.progress.epics.map((epic) => new EpicTreeItem(epic));
     }
 
-    // Epic children (stories) - Map Mode
+    // Epic children (stories)
     if (element instanceof EpicTreeItem) {
       if (element.epic.stories.length === 0) {
         // Show placeholder for empty epics
@@ -258,16 +235,11 @@ export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
       return element.epic.stories.map((story) => new StoryTreeItem(story));
     }
 
-    // Focus header children (stats + next task)
-    if (element instanceof FocusHeaderItem) {
-      return this.getFocusChildren(element.story, element.progress);
-    }
-
     return [];
   }
 
   /**
-   * Get root level items based on mode
+   * Get root level items - show epics directly
    */
   private getRootItems(): TreeElement[] {
     if (this.projects.length === 0) {
@@ -276,94 +248,10 @@ export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
 
     const items: TreeElement[] = [];
 
-    if (this.viewMode === 'focus') {
-      items.push(...this.getFocusRootItems());
-    } else {
-      items.push(...this.getMapRootItems());
-    }
-
-    // Add mode toggle at bottom
-    items.push(
-      new ActionTreeItem(
-        `Switch to ${this.viewMode === 'focus' ? 'Map' : 'Focus'} Mode`,
-        'sync',
-        { command: 'bmad.toggleView', title: 'Toggle View' }
-      )
-    );
-
-    return items;
-  }
-
-  /**
-   * Focus Mode: Show current story with expandable details
-   */
-  private getFocusRootItems(): TreeElement[] {
-    const project = this.projects[0];
-    const progress = project?.getProgress();
-
-    if (!progress) {
-      return [new InfoTreeItem('Loading...', 'loading~spin')];
-    }
-
-    if (!progress.currentStory) {
-      return [new InfoTreeItem('No story in progress', 'info')];
-    }
-
-    return [new FocusHeaderItem(progress.currentStory, progress)];
-  }
-
-  /**
-   * Focus Mode children: stats and next task
-   */
-  private getFocusChildren(story: StoryData, progress: ProjectProgress): TreeElement[] {
-    const items: TreeElement[] = [];
-
-    // Done count
-    items.push(new InfoTreeItem(`${story.completedCount} done`, 'check'));
-
-    // Remaining count
-    const remaining = story.totalCount - story.completedCount;
-    items.push(new InfoTreeItem(`${remaining} remaining`, 'list-ordered'));
-
-    // Next task (clickable)
-    const nextTask = getNextTask(story);
-    if (nextTask) {
-      items.push(
-        new ActionTreeItem(
-          `Next: ${truncate(nextTask.text, 45)}`,
-          'arrow-right',
-          {
-            command: 'bmad.openStoryAtLine',
-            title: 'Open Story',
-            arguments: [story, nextTask.line],
-          }
-        )
-      );
-    }
-
-    // Session streak
-    if (progress.sessionCompletedTasks > 0) {
-      items.push(new InfoTreeItem(`${progress.sessionCompletedTasks} tasks this session`, 'flame'));
-    }
-
-    // Git stats
-    if (progress.tasksSinceCommit > 0) {
-      items.push(new InfoTreeItem(`${progress.tasksSinceCommit} since last commit`, 'git-commit'));
-    }
-
-    return items;
-  }
-
-  /**
-   * Map Mode: Show epics directly at root level (no project wrapper)
-   */
-  private getMapRootItems(): TreeElement[] {
-    const items: TreeElement[] = [];
-
     for (const project of this.projects) {
       const progress = project.getProgress();
       if (progress) {
-        // Add epics directly - no project wrapper
+        // Add epics directly at root level
         for (const epic of progress.epics) {
           items.push(new EpicTreeItem(epic));
         }
@@ -377,15 +265,6 @@ export class BmadTreeProvider implements vscode.TreeDataProvider<TreeElement> {
     this.disposables.forEach((d) => d.dispose());
     this._onDidChangeTreeData.dispose();
   }
-}
-
-/**
- * Create visual progress bar
- */
-function createProgressBar(percentage: number): string {
-  const filled = Math.round(percentage / 10);
-  const empty = 10 - filled;
-  return '▓'.repeat(filled) + '░'.repeat(empty);
 }
 
 /**

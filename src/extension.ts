@@ -7,8 +7,7 @@ import * as vscode from 'vscode';
 import { BmadProject } from './bmadProject';
 import { BmadTreeProvider } from './treeProvider';
 import { BmadStatusBar } from './statusBar';
-import { ExtensionSettings, StoryData, ViewMode } from './types';
-import { getVersionDisplayName } from './parser/detector';
+import { ExtensionSettings, StoryData } from './types';
 
 let treeProvider: BmadTreeProvider;
 let statusBar: BmadStatusBar;
@@ -27,9 +26,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   // Initialize UI components
   treeProvider = new BmadTreeProvider();
   statusBar = new BmadStatusBar();
-
-  // Set initial view mode from settings
-  treeProvider.setMode(settings.defaultView);
 
   // Register tree view
   const treeView = vscode.window.createTreeView('bmadProgressView', {
@@ -56,16 +52,6 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
   context.subscriptions.push(
     vscode.workspace.onDidChangeWorkspaceFolders(async () => {
       await initializeProjects(settings);
-    })
-  );
-
-  // Watch for configuration changes
-  context.subscriptions.push(
-    vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('bmad')) {
-        const newSettings = getSettings();
-        treeProvider.setMode(newSettings.defaultView);
-      }
     })
   );
 
@@ -106,16 +92,6 @@ async function initializeProjects(settings: ExtensionSettings): Promise<void> {
  * Register extension commands
  */
 function registerCommands(context: vscode.ExtensionContext): void {
-  // Toggle View command
-  context.subscriptions.push(
-    vscode.commands.registerCommand('bmad.toggleView', () => {
-      const newMode = treeProvider.toggleMode();
-      vscode.window.showInformationMessage(
-        `BMAD: Switched to ${newMode === 'focus' ? 'Focus' : 'Map'} Mode`
-      );
-    })
-  );
-
   // Refresh command
   context.subscriptions.push(
     vscode.commands.registerCommand('bmad.refresh', async () => {
@@ -153,7 +129,7 @@ function registerCommands(context: vscode.ExtensionContext): void {
     })
   );
 
-  // Open story at line command (from focus mode)
+  // Open story at line command
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'bmad.openStoryAtLine',
@@ -193,7 +169,7 @@ function showWelcomeMessage(): void {
   );
 
   vscode.window.showInformationMessage(
-    `🎯 BMAD Progress activated! Tracking ${totalTasks} tasks across ${projectCount} project(s).`,
+    `BMAD Progress activated! Tracking ${totalTasks} tasks across ${projectCount} project(s).`,
     'View Progress'
   ).then((action) => {
     if (action === 'View Progress') {
@@ -211,7 +187,8 @@ function showDiagnostics(): void {
   if (projects.length === 0) {
     lines.push('No BMAD projects detected.', '');
     lines.push('## Detection looks for:');
-    lines.push('- `.bmad/bmm/` → BMAD v6');
+    lines.push('- `.bmad/bmm/` or `_bmad/bmm/` → BMAD v6');
+    lines.push('- `_bmad-output/stories/` → BMAD v6 (output folder)');
     lines.push('- `.bmad-core/` → BMAD v4');
     lines.push('- `docs/stories/` → Quick Flow');
   } else {
@@ -235,7 +212,6 @@ function showDiagnostics(): void {
 function getSettings(): ExtensionSettings {
   const config = vscode.workspace.getConfiguration('bmad');
   return {
-    defaultView: config.get<ViewMode>('defaultView', 'focus'),
     showSessionStreak: config.get<boolean>('showSessionStreak', true),
     gitIntegration: config.get<boolean>('gitIntegration', true),
     storiesPath: config.get<string>('storiesPath', ''),

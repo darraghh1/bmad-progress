@@ -2,7 +2,7 @@
   "name": "bmad-progress",
   "displayName": "BMAD Progress",
   "description": "See your BMAD story progress right in VSCode. Zero config.",
-  "version": "0.1.0",
+  "version": "0.3.3",
   "publisher": "bmad",
   "engines": {
     "vscode": "^1.85.0"
@@ -24,6 +24,7 @@
   "icon": "resources/icon.png",
   "activationEvents": [
     "workspaceContains:**/.bmad/**",
+    "workspaceContains:**/_bmad/**",
     "workspaceContains:**/.bmad-core/**",
     "workspaceContains:**/docs/stories/**",
     "workspaceContains:**/_bmad-output/**"
@@ -34,7 +35,7 @@
       "activitybar": [
         {
           "id": "bmad-progress",
-          "title": "BMAD Progress",
+          "title": "BMAD Epic Progress",
           "icon": "resources/bmad-icon.svg"
         }
       ]
@@ -43,16 +44,11 @@
       "bmad-progress": [
         {
           "id": "bmadProgressView",
-          "name": "Progress"
+          "name": "Epics"
         }
       ]
     },
     "commands": [
-      {
-        "command": "bmad.toggleView",
-        "title": "BMAD: Toggle View",
-        "icon": "$(sync)"
-      },
       {
         "command": "bmad.refresh",
         "title": "BMAD: Refresh",
@@ -70,11 +66,6 @@
     "menus": {
       "view/title": [
         {
-          "command": "bmad.toggleView",
-          "when": "view == bmadProgressView",
-          "group": "navigation"
-        },
-        {
           "command": "bmad.refresh",
           "when": "view == bmadProgressView",
           "group": "navigation"
@@ -84,15 +75,6 @@
     "configuration": {
       "title": "BMAD Progress",
       "properties": {
-        "bmad.defaultView": {
-          "type": "string",
-          "enum": [
-            "focus",
-            "map"
-          ],
-          "default": "focus",
-          "description": "Default view mode"
-        },
         "bmad.showSessionStreak": {
           "type": "boolean",
           "default": true,
@@ -110,13 +92,7 @@
         }
       }
     },
-    "keybindings": [
-      {
-        "command": "bmad.toggleView",
-        "key": "ctrl+shift+b",
-        "mac": "cmd+shift+b"
-      }
-    ]
+    "keybindings": []
   },
   "scripts": {
     "vscode:prepublish": "npm run build",

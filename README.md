@@ -69,7 +69,8 @@ Once published, you'll be able to search for "BMAD Progress" directly in VSCode.
 ## Usage
 
 The extension activates automatically when you open a folder containing:
-- `.bmad/bmm/` (BMAD v6)
+- `.bmad/bmm/` or `_bmad/bmm/` (BMAD v6)
+- `_bmad-output/stories/` (BMAD v6 output folder)
 - `.bmad-core/` (BMAD v4)
 - `docs/stories/` (Quick Flow)
 
@@ -109,7 +110,7 @@ It automatically detects:
 
 | Version | Detection | Stories Location |
 |---------|-----------|------------------|
-| BMAD v6 | `.bmad/bmm/` | `docs/sprint-artifacts/` |
+| BMAD v6 | `.bmad/bmm/` or `_bmad/bmm/` | `docs/sprint-artifacts/` or `_bmad-output/stories/` |
 | BMAD v4 | `.bmad-core/` | `docs/stories/` |
 | Quick Flow | `docs/stories/` | `docs/stories/` |
 
@@ -127,6 +128,22 @@ Full support for multi-root workspaces. Each workspace folder is tracked as a se
 - None yet! Report issues on [GitHub](https://github.com/bmad-method/bmad-progress/issues)
 
 ## Release Notes
+
+### 0.1.2
+
+- **Fix**: Support new BMAD v6.0+ folder structure
+- Added `_bmad-output/implementation-artifacts/` as stories location
+- Added `_bmad-output/project-planning-artifacts/` as epics location
+- Added `in-progress` and `done` epic statuses
+- Added support for `hs-epic-X` and `hs-X-Y` prefixes (hook system epics/stories)
+- Improved sprint-status.yaml parsing for newer BMAD projects
+
+### 0.1.1
+
+- **Fix**: Support both `.bmad/` and `_bmad/` folder naming conventions
+- Added `_bmad/bmm/` detection for BMAD v6 projects using underscore prefix
+- Updated activation events to trigger on `_bmad` folders
+- Improved diagnostics messaging
 
 ### 0.1.0
 
