@@ -68,12 +68,12 @@ describe('BMAD Detector', () => {
   describe('Story Path Resolution', () => {
     // Document expected story path locations
 
-    it('should look for v6 stories in docs/sprint-artifacts first', () => {
+    it('should look for v6 stories in _bmad-output/implementation-artifacts first', () => {
       const v6Paths = [
-        'docs/sprint-artifacts',
+        '_bmad-output/implementation-artifacts',
         'docs/stories',
       ];
-      assert.strictEqual(v6Paths[0], 'docs/sprint-artifacts');
+      assert.strictEqual(v6Paths[0], '_bmad-output/implementation-artifacts');
     });
 
     it('should look for v4 stories in docs/stories first', () => {

@@ -48,7 +48,7 @@ const GOAL_PATTERN = /^\*\*(?:Goal|Done when):\*\*\s*(.+)$/;
 /**
  * Parse all epics*.md files to extract epic and story information
  * Supports multiple files: epics.md, epics-phase2.md, hook-system-epics.md, etc.
- * @param epicsPath Path to the epics folder (e.g., _bmad-output or docs/sprint-artifacts)
+ * @param epicsPath Path to the epics folder (e.g., _bmad-output or _bmad-output/implementation-artifacts)
  */
 export async function parseEpicsFile(epicsPath: string): Promise<EpicsFileData | null> {
   const allEpics: PlannedEpic[] = [];

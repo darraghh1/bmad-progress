@@ -110,7 +110,7 @@ It automatically detects:
 
 | Version | Detection | Stories Location |
 |---------|-----------|------------------|
-| BMAD v6 | `.bmad/bmm/` or `_bmad/bmm/` | `docs/sprint-artifacts/` or `_bmad-output/stories/` |
+| BMAD v6 | `.bmad/bmm/` or `_bmad/bmm/` | `_bmad-output/implementation-artifacts/` or `_bmad-output/stories/` |
 | BMAD v4 | `.bmad-core/` | `docs/stories/` |
 | Quick Flow | `docs/stories/` | `docs/stories/` |
 

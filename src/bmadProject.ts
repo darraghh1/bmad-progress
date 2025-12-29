@@ -28,6 +28,7 @@ export class BmadProject implements vscode.Disposable {
   private progress: ProjectProgress | null = null;
   private fileWatcher: vscode.FileSystemWatcher | null = null;
   private epicsWatcher: vscode.FileSystemWatcher | null = null;
+  private sprintStatusWatcher: vscode.FileSystemWatcher | null = null;
   private debounceTimer: NodeJS.Timeout | null = null;
   private sessionStartCompletedTasks = 0;
   private gitAvailable = false;
@@ -112,6 +113,16 @@ export class BmadProject implements vscode.Disposable {
       this.epicsWatcher.onDidCreate(handleChange);
       this.epicsWatcher.onDidDelete(handleChange);
     }
+
+    // Watch sprint-status.yaml for BMAD workflow status changes
+    const sprintStatusPattern = new vscode.RelativePattern(
+      this.detection.storiesPath,
+      'sprint-status.yaml'
+    );
+    this.sprintStatusWatcher = vscode.workspace.createFileSystemWatcher(sprintStatusPattern);
+    this.sprintStatusWatcher.onDidChange(handleChange);
+    this.sprintStatusWatcher.onDidCreate(handleChange);
+    this.sprintStatusWatcher.onDidDelete(handleChange);
   }
 
   /**
@@ -289,6 +300,7 @@ export class BmadProject implements vscode.Disposable {
     }
     this.fileWatcher?.dispose();
     this.epicsWatcher?.dispose();
+    this.sprintStatusWatcher?.dispose();
     this._onDidChange.dispose();
   }
 }

@@ -54,7 +54,7 @@ function parseSprintStatusContent(content: string): SprintStatus {
 
   // Extract project info
   const project = (data.project as string) || 'Unknown';
-  const storyLocation = (data.story_location as string) || 'docs/sprint-artifacts';
+  const storyLocation = (data.story_location as string) || '_bmad-output/implementation-artifacts';
 
   // Parse development_status section
   const devStatus = data.development_status as Record<string, string> | undefined;
@@ -71,8 +71,8 @@ function parseSprintStatusContent(content: string): SprintStatus {
         continue;
       }
 
-      // Retrospective entries - skip
-      if (key.includes('retrospective')) {
+      // Retrospective entries - skip (only epic-X-retrospective patterns)
+      if (key.match(/^(?:hs-)?epic-\d+-retrospective$/)) {
         continue;
       }
 

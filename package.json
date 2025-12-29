@@ -2,7 +2,7 @@
   "name": "bmad-progress",
   "displayName": "BMAD Progress",
   "description": "See your BMAD story progress right in VSCode. Zero config.",
-  "version": "0.3.3",
+  "version": "0.3.5",
   "publisher": "bmad",
   "engines": {
     "vscode": "^1.85.0"
