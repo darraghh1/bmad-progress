@@ -1,11 +1,11 @@
 
-> bmad-progress@0.1.0 lint C:\Projects\DigitalMastery\apps\bmad-vscode-dashboard
+> bmad-progress@0.3.5 lint C:\Projects\DigitalMastery\apps\bmad-progress
 > eslint src --ext ts "--fix" "--cache" "--cache-location" "node_modules/.cache/.eslintcache"
 
 
 Oops! Something went wrong! :(
 
-ESLint: 9.39.1
+ESLint: 9.39.2
 
 ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
 
